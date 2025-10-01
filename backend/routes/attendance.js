@@ -3,7 +3,15 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { markAttendance } = require('../controllers/attendanceController');
+const { 
+    markAttendance, 
+    getTodaysAttendance, 
+    getAttendanceByDateRange, 
+    getStudentAttendance 
+} = require('../controllers/attendanceController');
+
+// Import pool directly here
+const pool = require('../config/db');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -53,13 +61,57 @@ const handleUploadError = (err, req, res, next) => {
     next();
 };
 
+// Debug route to check encodings
+router.get('/debug-encodings', async (req, res) => {
+    try {
+        console.log('Checking database encodings...');
+        const students = await pool.query('SELECT id, name, face_encoding FROM students');
+        
+        const encodingInfo = students.rows.map(student => {
+            let encoding;
+            try {
+                encoding = JSON.parse(student.face_encoding);
+                return {
+                    id: student.id,
+                    name: student.name,
+                    encodingValid: Array.isArray(encoding) && encoding.length === 128,
+                    encodingLength: Array.isArray(encoding) ? encoding.length : 'N/A',
+                    sample: Array.isArray(encoding) ? encoding.slice(0, 3) : 'N/A'
+                };
+            } catch (e) {
+                return {
+                    id: student.id,
+                    name: student.name,
+                    encodingValid: false,
+                    error: e.message
+                };
+            }
+        });
+
+        console.log('Encoding check completed');
+        res.json({ success: true, encodings: encodingInfo });
+    } catch (error) {
+        console.error('Error in debug-encodings:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Mark attendance route
 router.post(
     '/mark',
-    upload.single('image'), // 'image' is the field name in the form-data
+    upload.single('image'),
     handleUploadError,
     markAttendance
 );
+
+// Get today's attendance
+router.get('/today', getTodaysAttendance);
+
+// Get attendance by date range
+router.get('/range', getAttendanceByDateRange);
+
+// Get attendance history for a specific student
+router.get('/student/:id', getStudentAttendance);
 
 // Error handling for routes
 router.use((err, req, res, next) => {
