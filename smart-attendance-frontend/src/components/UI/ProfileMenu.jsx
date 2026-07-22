@@ -19,6 +19,9 @@ import {
 } from '@heroicons/react/24/outline';
 
 const ProfileMenu = ({ user, stats, onLogout, onUpdateProfile }) => {
+  const userStorageId = user?.id ? String(user.id) : user?.email || 'guest';
+  const phoneStorageKey = `attendance_profile_phone_${userStorageId}`;
+  const imageStorageKey = `attendance_profile_image_${userStorageId}`;
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
@@ -26,24 +29,30 @@ const ProfileMenu = ({ user, stats, onLogout, onUpdateProfile }) => {
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('attendance_theme') || 'dark');
   const savedThemeRef = useRef(localStorage.getItem('attendance_theme') || 'dark');
-  const [pendingProfileImage, setPendingProfileImage] = useState(() => localStorage.getItem('attendance_profile_image') || '');
+  const [pendingProfileImage, setPendingProfileImage] = useState(() => localStorage.getItem(imageStorageKey) || '');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: localStorage.getItem('attendance_profile_phone') || '',
+    phone: localStorage.getItem(phoneStorageKey) || '',
     currentPassword: '',
     newPassword: '',
   });
   const menuRef = useRef(null);
 
   useEffect(() => {
+    localStorage.removeItem('attendance_profile_phone');
+    localStorage.removeItem('attendance_profile_image');
+  }, []);
+
+  useEffect(() => {
+    setPendingProfileImage(localStorage.getItem(imageStorageKey) || '');
     setFormData((current) => ({
       ...current,
       name: user?.name || '',
       email: user?.email || '',
-      phone: localStorage.getItem('attendance_profile_phone') || '',
+      phone: localStorage.getItem(phoneStorageKey) || '',
     }));
-  }, [user]);
+  }, [imageStorageKey, phoneStorageKey, user]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -118,10 +127,10 @@ const ProfileMenu = ({ user, stats, onLogout, onUpdateProfile }) => {
       return;
     }
 
-    localStorage.setItem('attendance_profile_phone', formData.phone);
+    localStorage.setItem(phoneStorageKey, formData.phone);
     localStorage.setItem('attendance_theme', theme);
     savedThemeRef.current = theme;
-    localStorage.setItem('attendance_profile_image', pendingProfileImage);
+    localStorage.setItem(imageStorageKey, pendingProfileImage);
     setFormData((current) => ({ ...current, currentPassword: '', newPassword: '' }));
     setSavedMessage('Profile updated successfully');
     setSaving(false);
