@@ -71,11 +71,30 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const response = await authAPI.getProfile();
+    setUser(response.data.user);
+    return response.data.user;
+  };
+
+  const updateProfile = async (profileData) => {
+    try {
+      const response = await authAPI.updateProfile(profileData);
+      setUser(response.data.user);
+      return { success: true, user: response.data.user, message: response.data.message };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update profile';
+      return { success: false, message };
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
+    refreshUser,
+    updateProfile,
     loading
   };
 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Navbar from './components/Layout/Navbar';
 import LoadingSpinner from './components/UI/LoadingSpinner';
 
 // Lazy load pages
@@ -32,7 +31,6 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <Navbar />
           <React.Suspense
             fallback={
               <div className="min-h-screen flex items-center justify-center">

@@ -14,7 +14,7 @@ const {
 const pool = require('../config/db');
 
 // Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../uploads');kashvfyavfiasvfasvf
+const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }

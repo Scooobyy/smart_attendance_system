@@ -170,6 +170,35 @@ def detect_faces_in_image(image):
 def get_current_user_id():
     return int(get_jwt_identity())
 
+def build_dashboard_heatmap(user_id, days=35):
+    today = datetime.utcnow().date()
+    start_date = today - timedelta(days=days - 1)
+    active_student_count = Student.query.filter_by(user_id=user_id, is_active=True).count()
+    attendance_rows = Attendance.query.filter(
+        Attendance.user_id == user_id,
+        Attendance.date >= start_date,
+        Attendance.date <= today
+    ).all()
+
+    present_by_date = {}
+    records_by_date = {}
+    for row in attendance_rows:
+        present_by_date[row.date] = present_by_date.get(row.date, 0) + (1 if row.status == 'present' else 0)
+        records_by_date[row.date] = records_by_date.get(row.date, 0) + 1
+
+    heatmap = []
+    for offset in range(days):
+        day = start_date + timedelta(days=offset)
+        has_data = records_by_date.get(day, 0) > 0 and active_student_count > 0
+        heatmap.append({
+            "date": day.isoformat(),
+            "attendance": round(present_by_date.get(day, 0) / active_student_count, 4) if has_data else None,
+            "present": present_by_date.get(day, 0),
+            "total": active_student_count if has_data else 0
+        })
+
+    return heatmap
+
 # Helper function to mark all students as absent
 def mark_all_absent(classroom_id, user_id, attendance_date, reason):
     """Mark all students in a classroom as absent"""
@@ -570,7 +599,127 @@ def get_profile():
         logger.error(f"Profile error: {str(e)}")
         return jsonify({"success": False, "message": "Failed to get profile"}), 500
 
+@app.route("/api/profile", methods=["PUT"])
+@jwt_required()
+def update_profile():
+    try:
+        user_id = get_current_user_id()
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        email = (data.get('email') or '').strip().lower()
+        current_password = data.get('currentPassword') or ''
+        new_password = data.get('newPassword') or ''
+
+        if not name:
+            return jsonify({"success": False, "message": "Name is required"}), 400
+
+        if not email:
+            return jsonify({"success": False, "message": "Email is required"}), 400
+
+        existing_user = User.query.filter(User.email == email, User.id != user.id).first()
+        if existing_user:
+            return jsonify({"success": False, "message": "Email is already in use"}), 409
+
+        if new_password:
+            if len(new_password) < 6:
+                return jsonify({"success": False, "message": "New password must be at least 6 characters"}), 400
+
+            if not current_password:
+                return jsonify({"success": False, "message": "Current password is required to change password"}), 400
+
+            if not bcrypt.check_password_hash(user.password_hash, current_password):
+                return jsonify({"success": False, "message": "Current password is incorrect"}), 401
+
+            user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+
+        user.name = name
+        user.email = email
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Update profile error: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "message": "Failed to update profile"}), 500
+
 # Classroom Endpoints
+@app.route("/api/dashboard/summary", methods=["GET"])
+@jwt_required()
+def get_dashboard_summary():
+    try:
+        user_id = get_current_user_id()
+        today = datetime.utcnow().date()
+
+        classrooms = Classroom.query.filter_by(user_id=user_id).all()
+        total_students = Student.query.filter_by(user_id=user_id, is_active=True).count()
+        present_today = 0
+
+        if total_students > 0:
+            present_today = Attendance.query.filter_by(
+                user_id=user_id,
+                date=today,
+                status='present'
+            ).count()
+
+        today_attendance = round((present_today / total_students) * 100) if total_students > 0 else 0
+
+        classroom_list = []
+        for classroom in classrooms:
+            student_count = Student.query.filter_by(
+                classroom_id=classroom.id,
+                is_active=True
+            ).count()
+            present_count = 0
+            if student_count > 0:
+                present_count = Attendance.query.filter_by(
+                    classroom_id=classroom.id,
+                    user_id=user_id,
+                    date=today,
+                    status='present'
+                ).count()
+
+            classroom_list.append({
+                "id": classroom.id,
+                "name": classroom.name,
+                "description": classroom.description,
+                "subject": classroom.subject,
+                "grade_level": classroom.grade_level,
+                "student_count": student_count,
+                "today_attendance": round((present_count / student_count) * 100) if student_count > 0 else 0,
+                "created_at": classroom.created_at.isoformat()
+            })
+
+        return jsonify({
+            "success": True,
+            "stats": {
+                "totalClassrooms": len(classrooms),
+                "totalStudents": total_students,
+                "todayAttendance": today_attendance
+            },
+            "classrooms": classroom_list,
+            "heatmap": build_dashboard_heatmap(user_id)
+        })
+
+    except Exception as e:
+        logger.error(f"Dashboard summary error: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "message": "Failed to load dashboard summary"}), 500
+
 @app.route("/api/classrooms", methods=["POST"])
 @jwt_required()
 def create_classroom():
@@ -609,11 +758,50 @@ def create_classroom():
         logger.error(f"Create classroom error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "message": f"Failed to create classroom: {str(e)}"}), 500
 
+@app.route("/api/classrooms/<int:classroom_id>", methods=["DELETE"])
+@jwt_required()
+def delete_classroom(classroom_id):
+    try:
+        user_id = get_current_user_id()
+
+        classroom = Classroom.query.filter_by(id=classroom_id, user_id=user_id).first()
+        if not classroom:
+            return jsonify({"success": False, "message": "Classroom not found"}), 404
+
+        student_ids = [
+            student.id
+            for student in Student.query.filter_by(
+                classroom_id=classroom_id,
+                user_id=user_id
+            ).all()
+        ]
+
+        Attendance.query.filter_by(classroom_id=classroom_id).delete(synchronize_session=False)
+
+        if student_ids:
+            Student.query.filter(Student.id.in_(student_ids)).delete(synchronize_session=False)
+
+        db.session.delete(classroom)
+        db.session.commit()
+
+        logger.info(f"Classroom deleted successfully: {classroom_id}")
+
+        return jsonify({
+            "success": True,
+            "message": "Classroom and related students deleted successfully"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Delete classroom error: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "message": "Failed to delete classroom"}), 500
+
 @app.route("/api/classrooms", methods=["GET"])
 @jwt_required()
 def get_classrooms():
     try:
         user_id = get_current_user_id()
+        today = datetime.utcnow().date()
         classrooms = Classroom.query.filter_by(user_id=user_id).all()
         
         classroom_list = []
@@ -622,6 +810,14 @@ def get_classrooms():
                 classroom_id=classroom.id, 
                 is_active=True
             ).count()
+            present_count = 0
+            if student_count > 0:
+                present_count = Attendance.query.filter_by(
+                    classroom_id=classroom.id,
+                    user_id=user_id,
+                    date=today,
+                    status='present'
+                ).count()
             
             classroom_list.append({
                 "id": classroom.id,
@@ -630,6 +826,7 @@ def get_classrooms():
                 "subject": classroom.subject,
                 "grade_level": classroom.grade_level,
                 "student_count": student_count,
+                "today_attendance": round((present_count / student_count) * 100) if student_count > 0 else 0,
                 "created_at": classroom.created_at.isoformat()
             })
         
@@ -695,8 +892,8 @@ def create_student():
         
         image_file = request.files['image']
         name = request.form.get('name')
-        email = request.form.get('email')
-        student_id = request.form.get('student_id')
+        email = (request.form.get('email') or '').strip() or None
+        student_id = (request.form.get('student_id') or '').strip() or None
         classroom_id = request.form.get('classroom_id')
         
         if not name or not classroom_id:
@@ -709,6 +906,16 @@ def create_student():
         classroom = Classroom.query.filter_by(id=classroom_id, user_id=user_id).first()
         if not classroom:
             return jsonify({"success": False, "message": "Classroom not found"}), 404
+
+        if email:
+            existing_student = Student.query.filter_by(email=email).first()
+            if existing_student:
+                if existing_student.user_id == user_id and not existing_student.is_active:
+                    Attendance.query.filter_by(student_id=existing_student.id).delete(synchronize_session=False)
+                    db.session.delete(existing_student)
+                    db.session.flush()
+                else:
+                    return jsonify({"success": False, "message": "A student with this email already exists"}), 409
         
         # Process the image and detect face
         try:
@@ -808,6 +1015,37 @@ def create_student():
         db.session.rollback()
         logger.error(f"Create student error: {str(e)}", exc_info=True)
         return jsonify({"success": False, "message": f"Failed to create student: {str(e)}"}), 500
+
+@app.route("/api/students/<int:student_id>", methods=["DELETE"])
+@jwt_required()
+def delete_student(student_id):
+    try:
+        user_id = get_current_user_id()
+
+        student = Student.query.filter_by(
+            id=student_id,
+            user_id=user_id,
+            is_active=True
+        ).first()
+
+        if not student:
+            return jsonify({"success": False, "message": "Student not found"}), 404
+
+        Attendance.query.filter_by(student_id=student.id).delete(synchronize_session=False)
+        db.session.delete(student)
+        db.session.commit()
+
+        logger.info(f"Student deleted successfully: {student_id}")
+
+        return jsonify({
+            "success": True,
+            "message": "Student deleted successfully"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Delete student error: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "message": "Failed to delete student"}), 500
 
 @app.route("/api/students/<int:student_id>/face", methods=["PUT"])
 @jwt_required()

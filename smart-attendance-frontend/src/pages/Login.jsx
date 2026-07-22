@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { SparklesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/UI/LoadingSpinner';
+import PremiumLoader from '../components/UI/PremiumLoader';
+import GlassCard from '../components/UI/GlassCard';
+import AnimatedButton from '../components/UI/AnimatedButton';
+import AttendifyLogo from '../components/UI/AttendifyLogo';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -38,32 +43,72 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">SA</span>
-          </div>
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Sign in to your account
-        </h2>
+    <div className="min-h-screen bg-dark-bg relative overflow-hidden flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+            opacity: [0.1, 0.2, 0.1]
+          }}
+          transition={{ duration: 20, repeat: Infinity }}
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-gray-600 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            rotate: [0, -90, 0],
+            opacity: [0.1, 0.15, 0.1]
+          }}
+          transition={{ duration: 15, repeat: Infinity, delay: 5 }}
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gray-700 rounded-full blur-3xl"
+        />
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="card py-8 px-6 shadow-lg">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center mb-8"
+        >
+          <AttendifyLogo size="lg" className="flex-col text-center" />
+          <p className="text-slate-400 text-center">
+            AI-powered face recognition attendance system
+          </p>
+        </motion.div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <div className="mt-1">
+        {/* Login Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <GlassCard className="py-8 px-6">
+            <div className="flex items-center gap-2 mb-6">
+              <SparklesIcon className="w-5 h-5 text-gray-400" />
+              <h2 className="text-xl font-bold text-white">
+                Sign in to your account
+              </h2>
+            </div>
+
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                  Email address
+                </label>
                 <input
                   id="email"
                   name="email"
@@ -76,13 +121,11 @@ const Login = () => {
                   placeholder="Enter your email"
                 />
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                  Password
+                </label>
                 <input
                   id="password"
                   name="password"
@@ -95,35 +138,27 @@ const Login = () => {
                   placeholder="Enter your password"
                 />
               </div>
-            </div>
 
-            <div>
-              <button
+              <AnimatedButton
                 type="submit"
-                disabled={loading}
-                className="w-full flex justify-center items-center btn btn-primary py-3"
+                variant="primary"
+                loading={loading}
+                className="w-full"
               >
-                {loading ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    <span className="ml-2">Signing in...</span>
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </div>
-          </form>
+                {loading ? 'Signing in...' : 'Sign in'}
+              </AnimatedButton>
+            </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
-                Sign up here
-              </Link>
-            </p>
-          </div>
-        </div>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-slate-400">
+                Don't have an account?{' '}
+                <Link to="/register" className="font-medium text-gray-400 hover:text-gray-300 transition-colors">
+                  Sign up here
+                </Link>
+              </p>
+            </div>
+          </GlassCard>
+        </motion.div>
       </div>
     </div>
   );

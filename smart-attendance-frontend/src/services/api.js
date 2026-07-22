@@ -44,6 +44,7 @@ export const authAPI = {
   register: (userData) => flaskAPI.post('/api/register', userData),
   login: (credentials) => flaskAPI.post('/api/login', credentials),
   getProfile: () => flaskAPI.get('/api/profile'),
+  updateProfile: (profileData) => flaskAPI.put('/api/profile', profileData),
 };
 
 // Classroom API
@@ -51,6 +52,12 @@ export const classroomAPI = {
   create: (classroomData) => flaskAPI.post('/api/classrooms', classroomData),
   getAll: () => flaskAPI.get('/api/classrooms'),
   getById: (id) => flaskAPI.get(`/api/classrooms/${id}`),
+  delete: (id) => flaskAPI.delete(`/api/classrooms/${id}`),
+};
+
+// Dashboard API
+export const dashboardAPI = {
+  getSummary: () => flaskAPI.get('/api/dashboard/summary'),
 };
 
 // Student API
@@ -61,6 +68,7 @@ export const studentAPI = {
   updateFace: (studentId, formData) => flaskAPI.put(`/api/students/${studentId}/face`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  delete: (studentId) => flaskAPI.delete(`/api/students/${studentId}`),
 };
 
 // Attendance API

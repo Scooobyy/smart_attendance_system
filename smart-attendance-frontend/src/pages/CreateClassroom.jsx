@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { classroomAPI } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
@@ -49,11 +50,20 @@ const CreateClassroom = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-dark-bg py-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Create Classroom</h1>
-          <p className="mt-2 text-gray-600">Create a new classroom to start managing student attendance</p>
+        {/* Header with back button */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={() => navigate('/classrooms')}
+            className="p-3 glass-card rounded-xl hover:bg-white/5 transition-colors text-slate-400 hover:text-white"
+          >
+            <ArrowLeftIcon className="w-6 h-6" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Create Classroom</h1>
+            <p className="mt-2 text-slate-400">Create a new classroom to start managing student attendance</p>
+          </div>
         </div>
 
         <div className="card p-6">
@@ -65,7 +75,7 @@ const CreateClassroom = () => {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
                 Classroom Name *
               </label>
               <input
@@ -81,7 +91,7 @@ const CreateClassroom = () => {
             </div>
 
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="subject" className="block text-sm font-medium text-slate-300 mb-2">
                 Subject
               </label>
               <input
@@ -96,7 +106,7 @@ const CreateClassroom = () => {
             </div>
 
             <div>
-              <label htmlFor="grade_level" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="grade_level" className="block text-sm font-medium text-slate-300 mb-2">
                 Grade Level
               </label>
               <input
@@ -111,7 +121,7 @@ const CreateClassroom = () => {
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-2">
                 Description
               </label>
               <textarea
